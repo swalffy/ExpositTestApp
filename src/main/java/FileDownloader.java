@@ -50,7 +50,7 @@ public class FileDownloader {
             System.out.println(">You don't have the permission to open this folder. Skip this file");
             return false;
         }
-        System.out.print(">Downloading " + name + " file: ");
+        System.out.println(">Downloading " + name + " file;");
         byte buf[] = new byte[2048];
         int count = -1;
         while ((count = in.read(buf)) != -1) {

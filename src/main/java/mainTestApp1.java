@@ -11,9 +11,15 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class mainTestApp1 {
+
+    private static String getFileExtension(String fileName) {
+        int index = fileName.indexOf('.');
+        return index == -1 ? null : fileName.substring(index);
+    }
 
     public static Map<String,String> argsParser(String[] args){
         Map<String,String> result = new HashMap<String, String>();
@@ -24,10 +30,16 @@ public class mainTestApp1 {
     }
 
     public static List<FileDownloader> getListFromJson(String fileName) throws IOException {
-        ObjectMapper mapper = new ObjectMapper();
-        BufferedReader reader = new BufferedReader(new FileReader(fileName));
-        String temp;
         List<FileDownloader> result = new ArrayList<FileDownloader>() ;
+        BufferedReader reader;
+        try{
+            reader = new BufferedReader(new FileReader(fileName));
+        } catch (FileNotFoundException e){
+            System.out.println("File not found");
+            return result;
+        }
+        ObjectMapper mapper = new ObjectMapper();
+        String temp;
         while ((temp = reader.readLine()) != null){
             FileDownloader f;
             try{
@@ -41,11 +53,15 @@ public class mainTestApp1 {
     }
 
     public static List<FileDownloader> getListFromCSV(String fileName, String location) throws IOException {
-        File csvData = new File(fileName);
-        CSVParser parser = CSVParser.parse(csvData, Charset.defaultCharset() , CSVFormat.EXCEL);
-        int count = 0;
         List<FileDownloader> result= new ArrayList<FileDownloader>();
-        List<String> errors = new ArrayList<String>();
+        CSVParser parser;
+        try {
+            File csvData = new File(fileName);
+            parser = CSVParser.parse(csvData, Charset.defaultCharset() , CSVFormat.EXCEL);
+        } catch (FileNotFoundException e){
+            System.out.println("File not found");
+            return result;
+        }
         for(CSVRecord csvRecord : parser) {
             FileDownloader f;
             try {
@@ -56,11 +72,6 @@ public class mainTestApp1 {
             result.add(f);
         }
         return result;
-    }
-
-    private static String getFileExtension(String fileName) {
-        int index = fileName.indexOf('.');
-        return index == -1 ? null : fileName.substring(index);
     }
 
     public static void downloadsFromFile(final String location, String file, int streams) throws IOException {
@@ -74,14 +85,21 @@ public class mainTestApp1 {
             System.out.println("Wrong file extension. Please, input json or csv file");
         }
         if (!list.isEmpty()){
-            List <String> errors = new ArrayList<String>();
-            
-            for(FileDownloader item : list){                      
-                if (item.Download(location))
-                    System.out.println(" success");
-                else
-                    errors.add(item.getName());
-            }
+            final List <String> errors = new ArrayList<String>();
+            ExecutorService executorService = Executors.newFixedThreadPool(streams);
+
+            for (final FileDownloader item : list)
+                executorService.submit(new Thread(){
+                    public void run(){
+                        try{
+                            if (!item.Download(location))
+                                errors.add(item.getName());
+                        } catch (IOException e){}
+                    }
+                });
+            executorService.shutdown();
+            while (!executorService.isTerminated() && !Thread.currentThread().isInterrupted()) {}
+
             System.out.println(">Downloading was ended. " + (list.size()-errors.size()) + " of " + list.size() + ";");
             if (!errors.isEmpty()){
                 System.out.println(">Failed files: ");
@@ -92,12 +110,11 @@ public class mainTestApp1 {
     }
 
     public static void main(String[] args) throws IOException{
-        String[] a = {"-loc", "D:/Trash/downloads", "-fil", "D:/Trash/2.csv"};
         if (args.length % 2 != 0 ) {
             System.out.println("Wrong arguments line. Execution");
             return;
         }
-        Map<String,String> arguments = argsParser(a);
+        Map<String,String> arguments = argsParser(args);
 
         String location = arguments.get("-loc");
         String name = arguments.get("-nam");
