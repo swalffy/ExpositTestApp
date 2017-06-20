@@ -22,12 +22,12 @@ public class mainTestApp1 {
         }
         return result;
     }
-    public static void jsonFileDownloader(String fileName, String location) throws IOException {
+
+    public static List<FileDownloader> getListFromJson(String fileName) throws IOException {
         ObjectMapper mapper = new ObjectMapper();
         BufferedReader reader = new BufferedReader(new FileReader(fileName));
         String temp;
-        List<String> errors = new ArrayList<String>();
-        int count = 0;
+        List<FileDownloader> result = new ArrayList<FileDownloader>() ;
         while ((temp = reader.readLine()) != null){
             FileDownloader f;
             try{
@@ -35,60 +35,60 @@ public class mainTestApp1 {
             } catch (JsonParseException e){
                 continue;
             }
-            if (f.Download(location)) {
-                System.out.println("completed");
-                count++;
-            }
-            else
-                errors.add(f.getName());
+            result.add(f);
         }
-        int totalCount = errors.size() + count;
-        System.out.println(">Downloading was ended. " + count + " of " + totalCount + ";");
-        if (!errors.isEmpty()){
-            System.out.println(">Failed files: ");
-            for (String item : errors)
-                System.out.println(" " + item);
-        }
+        return result;
     }
-    public static void csvFileDownloader(String fileName,String location) throws IOException {
+
+    public static List<FileDownloader> getListFromCSV(String fileName, String location) throws IOException {
         File csvData = new File(fileName);
         CSVParser parser = CSVParser.parse(csvData, Charset.defaultCharset() , CSVFormat.EXCEL);
         int count = 0;
+        List<FileDownloader> result= new ArrayList<FileDownloader>();
         List<String> errors = new ArrayList<String>();
-        for(CSVRecord csvRecord : parser){
+        for(CSVRecord csvRecord : parser) {
             FileDownloader f;
-            try{
-                f = new FileDownloader(csvRecord.get(0),csvRecord.get(1));
+            try {
+                f = new FileDownloader(csvRecord.get(0), csvRecord.get(1));
             } catch (ArrayIndexOutOfBoundsException e) {
                 continue;
             }
-            if (f.Download(location)) {
-                System.out.println("completed");
-                count++;
-            }
-            else
-                errors.add(f.getName());
+            result.add(f);
         }
-        int totalCount = errors.size() + count;
-        System.out.println(">Downloading was ended. " + count + " of " + totalCount + ";");
-        if (!errors.isEmpty()){
-            System.out.println(">Failed files: ");
-            for (String item : errors)
-                System.out.println(" " + item);
-        }
+        return result;
     }
+
     private static String getFileExtension(String fileName) {
         int index = fileName.indexOf('.');
         return index == -1 ? null : fileName.substring(index);
     }
-    public static void downloadsFromFile(String location, String file) throws IOException {
+
+    public static void downloadsFromFile(final String location, String file, int streams) throws IOException {
         String fileExtension = getFileExtension(file);
+        List <FileDownloader> list = new ArrayList<FileDownloader>();
         if (fileExtension.equals(".json"))
-            jsonFileDownloader(file, location);
+            list = getListFromJson(file);
         else if (fileExtension.equals(".csv"))
-            csvFileDownloader(file, location);
-        else
+            list = getListFromCSV(file, location);
+        else {
             System.out.println("Wrong file extension. Please, input json or csv file");
+        }
+        if (!list.isEmpty()){
+            List <String> errors = new ArrayList<String>();
+            
+            for(FileDownloader item : list){                      
+                if (item.Download(location))
+                    System.out.println(" success");
+                else
+                    errors.add(item.getName());
+            }
+            System.out.println(">Downloading was ended. " + (list.size()-errors.size()) + " of " + list.size() + ";");
+            if (!errors.isEmpty()){
+                System.out.println(">Failed files: ");
+                for (String item : errors)
+                    System.out.println(" " + item);
+            }
+        }
     }
 
     public static void main(String[] args) throws IOException{
@@ -115,7 +115,7 @@ public class mainTestApp1 {
             new FileDownloader(name,url).Download(location);
         }else if (location != null && (file != null && (name == null && url == null))){
             new File(location).mkdirs();
-            downloadsFromFile(location, file);
+            downloadsFromFile(location, file, countOfStreams);
         }
         else {
             System.out.println("Wrong arguments line. Execution");

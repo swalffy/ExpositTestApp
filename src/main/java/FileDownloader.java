@@ -33,12 +33,6 @@ public class FileDownloader {
         InputStream in;
         FileOutputStream out;
         try {
-            out = new FileOutputStream(target);
-        } catch (FileNotFoundException e){
-            System.out.println(">You don't have the permission to open this folder. Skip this file");
-            return false;
-        }
-        try {
             in = new BufferedInputStream(url.openStream());
         } catch (FileNotFoundException e){
             System.out.println(">Corrupted url. Skip " + name + "  file");
@@ -48,6 +42,12 @@ public class FileDownloader {
             return false;
         } catch (HTTPException e){
             System.out.println(">Corrupted url. Skip " + name + "  file");
+            return false;
+        }
+        try {
+            out = new FileOutputStream(target);
+        } catch (FileNotFoundException e){
+            System.out.println(">You don't have the permission to open this folder. Skip this file");
             return false;
         }
         System.out.print(">Downloading " + name + " file: ");
